@@ -93,5 +93,18 @@ def unlock():
     CHECK any previous waiting transactions from lock_table
     IF transaction is waiting THEN
         DISPLAY that the transaction has resumed its operation
-        
+```
+
+```python
+def wound_wait():
+    request_timestamp := timestamp_of_requesting_transaction
+    hold_timestamp := timestamp_holding_transaction_lock
+    IF request_timestamp < hold_timestamp
+        DISPLAY requesting_transaction will abort
+        abort(requesting_transaction) # Will be restarted later with same timestamp
+    ELSE
+        # requesting_transaction will wait
+        APPEND requesting_transaction to waiting_list
+        UPDATE status of requesting_transaction in transaction_table to "blocked"
+        DISPLAY requesting_transaction is blocked
 ```
