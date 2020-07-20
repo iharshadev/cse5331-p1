@@ -1,12 +1,17 @@
-# CSE 5331 - Project 1 - Phase 1
+<h1 align="center"> 
+    CSE 5331 | Project 1
+</h1>
+<h3 align="center">
+    Phase 1 - Pseudocode to simulate a rigorous two phase locking protocol (2PL) with wound wait method to deal with deadlocks and concurrency control
+</h3>
 
+#### Contributors
 |Student Id | Student Name|
 ---|---
 |1001767678| Harshavardhan Ramamurthy|
 |1001767676| Karan Rajpal|
 
-# Pseudocode to simulate a rigorous two phase locking protocol with wound wait method to deal with deadlocks and concurrency control
-
+### Pseudo Code
 ```python
 def main():
     READ input_file
