@@ -1,71 +1,80 @@
 <h1 align="center"> 
     CSE 5331 | Project 1
 </h1>
-<h3 align="center">
-    Phase 1 - Pseudocode to simulate a rigorous two phase locking protocol (2PL) with wound wait method to deal with deadlocks and concurrency control
-</h3>
 
-#### Contributors
+<h2 align="center">
+    Phase 1 - Pseudocode to simulate a rigorous two phase locking protocol (2PL) with wound wait method to deal with deadlocks and concurrency control
+</h2>
+
+### Contributors
+
 |Student Id | Student Name|
----|---
+|---|---|
 |1001767678| Harshavardhan Ramamurthy|
 |1001767676| Karan Rajpal|
 
 ### Pseudo Code
+
 ```python
 def main():
     READ input_file
     FOR each line in input_file:
-        RETREIVE contents of transaction table into current_transaction
+        current_transaction := contents_of_transaction_table
         IF current_transaction is blocked THEN
             ADD operation to list of waiting operations for current_transaction in transaction table
         ELSE
             IF current_transaction is aborted THEN
-                Disregard the operation
+                Disregard operation
             ELSE
                 execute_operation()
+```
 
+```python
 def execute_operation(operation):
-    TOKENIZE the line into operation and item
+    TOKENIZE line into operation and item
 
     IF operation = 'b' THEN
         INCREMENT counter
         begin_transaction()
     IF operation = 'r' THEN
-        Get the item to be read from the variable/data structure storing it
+        Get item to be read from the variable/data structure storing it
         Apply read_lock on the variable using readlock(variable)
     IF operation = 'w' THEN
         APPLY write lock using writelock()
     IF operation = 'e' THEN
         COMMIT transaction using commit()
+```
 
+```python
 def readlock():
-    RETREIVE record for the item from transaction_table
+    RETREIVE record for item from transaction_table
     IF record for item NOT IN lock_table THEN
         INSERT item into the lock_table with 'read' as state of lock
         DISPLAY the reansaction that has readlocked the item
     ELSE
         IF item is writelocked THEN
-            # Conflict in transaction; use wound wait to take an appropriate decision to resolve the situation
+            # Conflict in transaction
+            # Use wound wait to make a resolution
             wound_wait()
         ELSE
-            UPDATE item in the lock_table
-            APPEND Tid to transaction_holding
-            UPDATE items field of the transaction_table for the transaction
+            UPDATE item in lock_table
+            APPEND tid to transaction_holding
+            UPDATE items OF transaction IN transaction_table
             DISPLAY the transaction that has readlocked the item
+```
 
-
+```python
 def writelock():
-    RETREIVE the record for the item from lock_table
-    IF the item is already locked THEN
+    RETREIVE record for item from lock_table
+    IF item is already locked THEN
         GET type of lock from transaction that has currently locked the item
     IF item locked by same transaction THEN
         UPDATE lock table entry for the item from readlock to writelock
         DISPLAY the transaction that has upgraded the lock
     ELSE
         IF item IS NOT locked THEN
-            UPDATE status of the item to writelocked
-            APPEND Tid to the transaction_holding
+            UPDATE status OF item TO writelocked
+            APPEND tid to the transaction_holding
             DISPLAY the transaction that has held the lock
         ELSE
             IF item locked by another transaction THEN
@@ -73,22 +82,26 @@ def writelock():
             ELSE
                 INSERT entry to lock_table
                 DISPLAY the transaction that has writelocked the item
+```
 
+```python
 def commit():
-    items := {items locked by transaction}
-    RETREIVE items locked by transaction
+    items := {items_locked_by_transaction}
     FOR EACH item in items:
-        unlock(item)
-    UPDATE status of the transaction in transaction_table to committed
+        unlock(item) # to unlock items
+    UPDATE status OF transaction in transaction_table to "committed"
     DISPLAY that the transaction has been committed
+```
 
+```python
 def abort():
-    items := { items locked by the transaction}
-    RETREIVE items locked by the transaction
+    items := {items_locked_by_transaction}
     FOR EACH item in items:
-        unlock() to unlock items
-    UPDATE status of transaction in transaction_table to aborted
+        unlock(item) # to unlock items
+    UPDATE status OF transaction in transaction_table to "aborted"
+```
 
+```python
 def unlock():
     CHECK any previous waiting transactions from lock_table
     IF transaction is waiting THEN
