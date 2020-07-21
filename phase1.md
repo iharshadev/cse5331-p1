@@ -15,6 +15,10 @@
 
 ### Pseudo Code
 
+#### main()
+
+Reads statements from input file and drives the program
+
 ```python
 def main():
     READ input_file
@@ -28,6 +32,10 @@ def main():
             ELSE
                 execute_operation()
 ```
+
+#### execute_operation(operation)
+
+Executes operation sent as an argument
 
 ```python
 def execute_operation(operation):
@@ -44,6 +52,10 @@ def execute_operation(operation):
     IF operation = 'e' THEN
         COMMIT transaction using commit()
 ```
+
+#### readlock()
+
+Retrieves all records present in the lock_table for an item. If no records are present, then records are inserted to lock_table with appropriate status and the transaction table is updated as well. If the item is locked by a non-conflicting transaction, then it is unlocked. If the transcation is write-locked by another transcation then wound_wait() is executed.
 
 ```python
 def readlock():
@@ -62,6 +74,10 @@ def readlock():
             UPDATE items OF transaction IN transaction_table
             DISPLAY the transaction that has readlocked the item
 ```
+
+#### writelock()
+
+Retrieves all records present in the lock_table for an item. If item is read-locked by the same transaction, then the lock status is updated to a write-lock. If the item is unlocked beforehand, then the status is updated to write-locked directly. If the item is locked by another transaction, then wound_wait() is executed. 
 
 ```python
 def writelock():
@@ -84,6 +100,10 @@ def writelock():
                 DISPLAY the transaction that has writelocked the item
 ```
 
+#### commit()
+
+Unlocks all present locks for a transaction and updates the status to committed in the transaction table.
+
 ```python
 def commit():
     items := {items_locked_by_transaction}
@@ -93,6 +113,10 @@ def commit():
     DISPLAY that the transaction has been committed
 ```
 
+#### abort()
+
+Unlocks all present locks for a transaction and updates the status to aborted in the transaction table.
+
 ```python
 def abort():
     items := {items_locked_by_transaction}
@@ -101,12 +125,21 @@ def abort():
     UPDATE status OF transaction in transaction_table to "aborted"
 ```
 
+#### unlock()
+
+Unlocks item in the transaction table by updating the status accordingly. If any transactions are waiting for this item the the lock is granted to them. 
+
 ```python
+# TODO: finish implementation of method
 def unlock():
     CHECK any previous waiting transactions from lock_table
     IF transaction is waiting THEN
         DISPLAY that the transaction has resumed its operation
 ```
+
+#### wound_wait()
+
+Used to decide which transaction will wait and which will abort when a deadlock occurs based on the timestamp stored in the transaction table.
 
 ```python
 def wound_wait():
