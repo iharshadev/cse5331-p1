@@ -154,3 +154,22 @@ def wound_wait():
         UPDATE status of requesting_transaction in transaction_table to "blocked"
         DISPLAY requesting_transaction is blocked
 ```
+
+### Data Structures Proposed
+
+#### Transaction Table
+Attribute|Description|Data type
+---|---|---
+tid | Transaction ID | `int`
+timestamp | Transaction Timestamp(Unix Timestamp in Millis) | `int`
+items | Items the current transaction holds | `list` 
+status | State of current transaction | `string`
+operations | Operations in the waiting transaction| `list`
+
+#### Lock Table
+Attribute|Description|Data type
+---|---|---
+item | The item locked or unlocked by the transaction | `int`
+transaction_holding | List of transactions currently holding the item| `list`
+transaction_waiting | List of transactions currently waiting to hold the item | `list`
+state | Current state of the item (r/w)| `str` 
