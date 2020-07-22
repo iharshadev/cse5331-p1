@@ -130,11 +130,23 @@ def abort():
 Unlocks item in the transaction table by updating the status accordingly. If any transactions are waiting for this item the the lock is granted to them. 
 
 ```python
-# TODO: finish implementation of method
 def unlock():
-    CHECK any previous waiting transactions from lock_table
-    IF transaction is waiting THEN
-        DISPLAY that the transaction has resumed its operation
+    FOR EACH transaction in lock_table
+        IF transaction is waiting THEN
+            resumed_transaction := {transaction}
+            DISPLAY resumed_transaction has resumed operation
+            GET tid of resumed_transaction from lock_table
+            REMOVE tid of resumed_transaction from transaction_waiting in lock_table
+            APPEND tid of resumed_transaction to transaction_holding in lock_table
+            UPDATE status of resumed_transaction in transaction_table to "active"
+            # Execute waiting operations from transaction table
+            operations_list := {operations from transaction_table}
+            FOR EACH operation in operations_list
+                execute_operation()
+        ELSE
+            REMOVE tid of transaction from transaction_holding in lock_table
+            UPDATE state of transaction in lock_table to "unlocked"
+            REMOVE tid of transaction from items in transaction_table
 ```
 
 #### wound_wait()
@@ -150,7 +162,7 @@ def wound_wait():
         abort(requesting_transaction) # Will be restarted later with same timestamp
     ELSE
         # requesting_transaction will wait
-        APPEND requesting_transaction to waiting_list
+        APPEND tid of requesting_transaction to transaction_waiting in lock_table
         UPDATE status of requesting_transaction in transaction_table to "blocked"
         DISPLAY requesting_transaction is blocked
 ```
