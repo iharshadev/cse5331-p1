@@ -20,6 +20,7 @@
 Reads statements from input file and drives the program
 
 ```python
+timestamp := 0 # To track the transaction's timestamp
 def main():
     READ input_file
     FOR each line in input_file:
@@ -32,6 +33,17 @@ def main():
             ELSE
                 execute_operation()
 ```
+#### begin_transaction(transaction_number, transation_timestamp)
+
+Starts a transaction by adding an new entry in the transaction table with status as 'active'
+
+```python
+def begin_transaction(transaction_id, transation_timestamp):
+    transaction_id := timestamp + transaction_number
+    INSERT (tid:transaction_id,timestamp: transaction_timestamp, status: 'active', items:{}) for this transaction in the transaction_table 
+    
+```
+
 
 #### execute_operation(operation)
 
@@ -42,7 +54,7 @@ def execute_operation(operation):
     TOKENIZE line into operation and item
 
     IF operation = 'b' THEN
-        INCREMENT counter
+        INCREMENT timestamp
         begin_transaction()
     IF operation = 'r' THEN
         Get item to be read from the variable/data structure storing it
@@ -59,7 +71,7 @@ Retrieves all records present in the lock_table for an item. If no records are p
 
 ```python
 def readlock():
-    RETREIVE record for item from transaction_table
+    record := entry for the item in transaction_table
     IF record for item NOT IN lock_table THEN
         INSERT item into the lock_table with 'read' as state of lock
         DISPLAY the reansaction that has readlocked the item
@@ -81,7 +93,7 @@ Retrieves all records present in the lock_table for an item. If item is read-loc
 
 ```python
 def writelock():
-    RETREIVE record for item from lock_table
+    item := record for the item from lock_table
     IF item is already locked THEN
         GET type of lock from transaction that has currently locked the item
     IF item locked by same transaction THEN
@@ -157,7 +169,7 @@ Used to decide which transaction will wait and which will abort when a deadlock 
 def wound_wait():
     request_timestamp := timestamp_of_requesting_transaction
     hold_timestamp := timestamp_holding_transaction_lock
-    IF request_timestamp < hold_timestamp
+    IF request_timestamp < hold_timestamp THEN
         DISPLAY requesting_transaction will abort
         abort(requesting_transaction) # Will be restarted later with same timestamp
     ELSE
@@ -166,3 +178,22 @@ def wound_wait():
         UPDATE status of requesting_transaction in transaction_table to "blocked"
         DISPLAY requesting_transaction is blocked
 ```
+
+### Data Structures Proposed
+
+#### Transaction Table
+Attribute|Description|Data type
+---|---|---
+tid | Transaction ID | `int`
+timestamp | Transaction Timestamp | `int`
+items | Items the current transaction holds | `list` 
+status | State of current transaction(active, committed, aborted) | `string`
+operations | Operations in the waiting transaction| `list`
+
+#### Lock Table
+Attribute|Description|Data type
+---|---|---
+item | The item locked or unlocked by the transaction | `int`
+tid_holding | List of transactions currently holding the item| `list`
+tid_waiting | List of transactions currently waiting to hold the item | `list`
+state | Current state of the item (r/w)| `str` 
