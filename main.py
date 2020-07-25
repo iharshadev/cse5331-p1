@@ -78,6 +78,11 @@ class WoundWait:
             self.abort(holding)
             self.LOCK_TABLE[line.item].holding.append(line.tid)
             self.LOCK_TABLE[line.item].current_state = "write"
+            print("T{} applied write-lock on item {}".format(line.tid, line.item))
+        else:
+            print("T{} added to wait-list for {}-lock on item {}".format(line.tid, line.op, line.item))
+            self.TRANSACTION_TABLE[line.tid].operations.append(line.op)
+            self.TRANSACTION_TABLE[line.tid].items.append(line.item)
 
     def abort(self, tid, older_tid=None):
         for item in self.TRANSACTION_TABLE[tid].items:
@@ -115,11 +120,14 @@ class WoundWait:
 
         if self.LOCK_TABLE[item].waiting:
             tid_waiting = self.LOCK_TABLE[item].waiting.pop()
-            op_waiting = self.TRANSACTION_TABLE[tid_waiting].operations.pop()
+            op_waiting = self.TRANSACTION_TABLE[tid_waiting].operations[-1]
             self.LOCK_TABLE[item].holding.append(tid_waiting)
             self.LOCK_TABLE[item].current_state = op_waiting
             print("T{} resumed operation from wait-list.".format(tid_waiting, op_waiting, item))
-            self.execute_operation(Record(op_waiting, tid_waiting, item))
+            while self.TRANSACTION_TABLE[tid_waiting].operations and self.TRANSACTION_TABLE[tid_waiting].items:
+                self.execute_operation(Record(self.TRANSACTION_TABLE[tid_waiting].operations.pop(0),
+                                              tid_waiting,
+                                              self.TRANSACTION_TABLE[tid_waiting].items.pop(0)))
 
     def simulate(self, schedule):
         [self.execute_operation(line) for line in schedule]
@@ -141,14 +149,14 @@ class WoundWait:
                     self.TRANSACTION_TABLE[line.tid].items.append(line.item)
                 else:
                     print("T{} applied read-lock on item {}".format(line.tid, line.item))
-                    self.TRANSACTION_TABLE[line.tid].operations.append(line.op)
-                    self.TRANSACTION_TABLE[line.tid].items.append(line.item)
+                    # self.TRANSACTION_TABLE[line.tid].operations.append(line.op)
+                    # self.TRANSACTION_TABLE[line.tid].items.append(line.item)
                     self.LOCK_TABLE[line.item].holding.append(line.tid)
                     self.LOCK_TABLE[line.item].current_state = "read"
             else:
                 print("T{} applied read-lock on item {}".format(line.tid, line.item))
-                self.TRANSACTION_TABLE[line.tid].operations.append(line.op)
-                self.TRANSACTION_TABLE[line.tid].items.append(line.item)
+                # self.TRANSACTION_TABLE[line.tid].operations.append(line.op)
+                # self.TRANSACTION_TABLE[line.tid].items.append(line.item)
                 self.LOCK_TABLE[line.item] = LockTable(line.item)
                 self.LOCK_TABLE[line.item].holding.append(line.tid)
                 self.LOCK_TABLE[line.item].current_state = "read"
@@ -157,7 +165,7 @@ class WoundWait:
             if self.TRANSACTION_TABLE[line.tid].status in ["aborted", "ended"]:
                 pass
             else:
-                print("T{} attempting to write-lock item {}".format(line.tid, line.item))
+                # print("T{} attempting to write-lock item {}".format(line.tid, line.item))
                 [self.abort(younger_tid, line.tid) for younger_tid in self.get_younger_than(line.tid, line.item)]
 
                 if line.item in self.LOCK_TABLE:
