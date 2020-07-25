@@ -99,61 +99,63 @@ class WoundWait:
                 and (key in self.LOCK_TABLE[item].holding or key in self.LOCK_TABLE[item].waiting)]
 
     def simulate(self, schedule):
-        for line in schedule:
-            if line.op == 'b':
-                self.counter += 1
-                self.begin_transaction(line, self.counter)
-            elif line.op == "r":
-                if line.item in self.LOCK_TABLE:
-                    if self.LOCK_TABLE[line.item].current_state == "w":
-                        print("Item {} already write-locked by T{}. Adding read-operation to wait-list".format(
-                            line.item, self.LOCK_TABLE[line.item].holding[0]
-                        ))
-                        self.LOCK_TABLE[line.item].waiting.append(line.tid)
-                        self.TRANSACTION_TABLE[line.tid].operations.append(line.op)
-                        self.TRANSACTION_TABLE[line.tid].items.append(line.item)
-                    else:
-                        print("T{} applied read-lock on item {}".format(line.tid, line.item))
-                        self.TRANSACTION_TABLE[line.tid].operations.append(line.op)
-                        self.TRANSACTION_TABLE[line.tid].items.append(line.item)
-                        self.LOCK_TABLE[line.item].holding.append(line.tid)
-                        self.LOCK_TABLE[line.item].current_state = "r"
+        [self.execute_operation(line) for line in schedule]
+
+    def execute_operation(self, line):
+        if line.op == 'b':
+            self.counter += 1
+            self.begin_transaction(line, self.counter)
+        elif line.op == "r":
+            if line.item in self.LOCK_TABLE:
+                if self.LOCK_TABLE[line.item].current_state == "w":
+                    print("Item {} already write-locked by T{}. Adding read-operation to wait-list".format(
+                        line.item, self.LOCK_TABLE[line.item].holding[0]
+                    ))
+                    self.LOCK_TABLE[line.item].waiting.append(line.tid)
+                    self.TRANSACTION_TABLE[line.tid].operations.append(line.op)
+                    self.TRANSACTION_TABLE[line.tid].items.append(line.item)
                 else:
                     print("T{} applied read-lock on item {}".format(line.tid, line.item))
                     self.TRANSACTION_TABLE[line.tid].operations.append(line.op)
                     self.TRANSACTION_TABLE[line.tid].items.append(line.item)
-                    self.LOCK_TABLE[line.item] = LockTable(line.item)
                     self.LOCK_TABLE[line.item].holding.append(line.tid)
                     self.LOCK_TABLE[line.item].current_state = "r"
+            else:
+                print("T{} applied read-lock on item {}".format(line.tid, line.item))
+                self.TRANSACTION_TABLE[line.tid].operations.append(line.op)
+                self.TRANSACTION_TABLE[line.tid].items.append(line.item)
+                self.LOCK_TABLE[line.item] = LockTable(line.item)
+                self.LOCK_TABLE[line.item].holding.append(line.tid)
+                self.LOCK_TABLE[line.item].current_state = "r"
 
-            elif line.op == "w":
-                print("T{} attempting to write-lock item {}".format(line.tid, line.item))
-                [self.abort(younger_tid, line.tid) for younger_tid in self.get_younger_than(line.tid, line.item)]
+        elif line.op == "w":
+            print("T{} attempting to write-lock item {}".format(line.tid, line.item))
+            [self.abort(younger_tid, line.tid) for younger_tid in self.get_younger_than(line.tid, line.item)]
 
-                if line.item in self.LOCK_TABLE:
-                    if not self.LOCK_TABLE[line.item].holding:
-                        print("T{} applied write-lock on item {}".format(line.tid, line.item))
+            if line.item in self.LOCK_TABLE:
+                if not self.LOCK_TABLE[line.item].holding:
+                    print("T{} applied write-lock on item {}".format(line.tid, line.item))
+                else:
+                    tid_holding = self.LOCK_TABLE[line.item].holding[-1]
+                    if tid_holding == line.tid:
+                        print("T{} upgraded the lock on item{} from to write".format(line.tid, line.item))
+                        self.LOCK_TABLE[line.item].current_state = "w"
                     else:
-                        tid_holding = self.LOCK_TABLE[line.item].holding[-1]
-                        if tid_holding == line.tid:
-                            print("T{} upgraded the lock on item{} from to write".format(line.tid, line.item))
-                            self.LOCK_TABLE[line.item].current_state = "w"
-                        else:
-                            print(
-                                "Conflict: T{} attempting to write-lock {}. Already {}-locked by T{}. Using wound-wait".format(
-                                    line.tid, line.item, self.LOCK_TABLE[line.item].current_state,
-                                    self.LOCK_TABLE[line.item].holding[-1]))
-                            self.woundwait(line, tid_holding)
-            elif line.op == "e":
-                for i in self.TRANSACTION_TABLE[line.tid].items:
-                    if line.tid in self.LOCK_TABLE[i].holding:
-                        print("\t T{} released lock on {}".format(line.tid, i))
-                        self.LOCK_TABLE[i].holding.remove(line.tid)
-
-                self.TRANSACTION_TABLE[line.tid].items = []
-                self.TRANSACTION_TABLE[line.tid].operations = []
-                self.TRANSACTION_TABLE[line.tid].status = "ended"
-                print("Transaction T{} complete. Released all the locks held".format(line.tid))
+                        print(
+                            "Conflict: T{} attempting to write-lock {}. Already {}-locked by T{}. Using wound-wait".format(
+                                line.tid, line.item, self.LOCK_TABLE[line.item].current_state,
+                                self.LOCK_TABLE[line.item].holding[-1]))
+                        self.woundwait(line, tid_holding)
+        elif line.op == "e":
+            for i in self.TRANSACTION_TABLE[line.tid].items:
+                if line.tid in self.LOCK_TABLE[i].holding:
+                    print("\t T{} released lock on {}".format(line.tid, i))
+                    self.LOCK_TABLE[i].holding.remove(line.tid)
+            # TODO: Execute next oldest transaction recursively
+            self.TRANSACTION_TABLE[line.tid].items = []
+            self.TRANSACTION_TABLE[line.tid].operations = []
+            self.TRANSACTION_TABLE[line.tid].status = "ended"
+            print("Transaction T{} complete. Released all the locks held".format(line.tid))
 
 
 if len(sys.argv) < 3:
@@ -165,6 +167,6 @@ operations = []
 
 with open(sys.argv[2], 'rt') as file:
     lines = file.readlines()
-    for line in lines:
-        operations.append(parse(line))
+    for row in lines:
+        operations.append(parse(row))
 WoundWait().simulate(operations)
