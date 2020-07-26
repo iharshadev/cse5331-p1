@@ -75,7 +75,15 @@ class TwoPhaseLocking:
             self.TRANSACTION_TABLE[record.tid] = Transaction(record.tid, self.timestamp + counter)
             print("Transaction T{} started".format(record.tid))
 
-    def woundwait(self, line, holding, lock="write"):
+    def prevent_deadlock(self, line, holding, lock="write"):
+        if control_method == ALLOWED_CONTROL_METHODS[0]:
+            self.wound_wait(line, holding, lock)
+        elif control_method == ALLOWED_CONTROL_METHODS[1]:
+            self.wait_die()
+        else:
+            self.caution_wait()
+
+    def wound_wait(self, line, holding, lock):
         if self.TRANSACTION_TABLE[line.tid].timestamp < self.TRANSACTION_TABLE[holding].timestamp:
             abort_reason = "T{} Aborted since an older transaction T{} applied write-lock on item {}.".format(
                 holding, line.tid, line.item)
@@ -93,6 +101,12 @@ class TwoPhaseLocking:
             self.TRANSACTION_TABLE[line.tid].status = "wait"
             if line.tid not in self.LOCK_TABLE[line.item].waiting:
                 self.LOCK_TABLE[line.item].waiting.append(line.tid)
+
+    def wait_die(self):
+        pass
+
+    def caution_wait(self):
+        pass
 
     def get_younger_than(self, tid, item):
         return [key for (key, value) in self.TRANSACTION_TABLE.items()
@@ -166,7 +180,7 @@ class TwoPhaseLocking:
                     print("Item {} already write-locked by T{}. Using wound-wait to resolve conflict".format(
                         line.item, self.LOCK_TABLE[line.item].holding[0]
                     ))
-                    self.woundwait(line, self.LOCK_TABLE[line.item].holding[0], "read")
+                    self.prevent_deadlock(line, self.LOCK_TABLE[line.item].holding[0], "read")
                 else:
                     print("T{} applied read-lock on item {}".format(line.tid, line.item))
                     if self.TRANSACTION_TABLE[line.tid].status == "active":
@@ -219,7 +233,7 @@ class TwoPhaseLocking:
                             print(
                                 "Conflict: Already {}-locked by T{}. Using wound-wait to resolve conflict".format(
                                     self.LOCK_TABLE[line.item].current_state, self.LOCK_TABLE[line.item].holding[-1]))
-                            self.woundwait(line, tid_holding)
+                            self.prevent_deadlock(line, tid_holding)
                 else:
                     print("T{} applied write-lock on item {}".format(line.tid, line.item))
                     self.LOCK_TABLE[line.item].current_state = "w"
@@ -230,15 +244,29 @@ class TwoPhaseLocking:
                 self.terminate_transaction(line.tid)
 
 
+operations = []
+
+ALLOWED_CONTROL_METHODS = ["wound-wait", "wait-die", "caution-wait"]
+
 if len(sys.argv) < 3:
-    print("Usage: python main.py <control-method> <input-file>"
-          "\ncontrol-methods:\n1.wound-wait\n2.wait-die3.something-else")
+    print(f"""Usage: python main.py <control-method> <input-file-path>
+                control-methods:
+                    1. {ALLOWED_CONTROL_METHODS[0]}
+                    2. {ALLOWED_CONTROL_METHODS[1]}
+                    3. {ALLOWED_CONTROL_METHODS[2]}""")
     exit(1)
 
-operations = []
+control_method = sys.argv[1].lower()
+
+if control_method in ALLOWED_CONTROL_METHODS:
+    print(f"Using {control_method} for deadlock prevention\n")
+else:
+    print(f"Unsupported control method: {control_method}. Allowed methods are: {ALLOWED_CONTROL_METHODS}")
+    exit(1)
 
 with open(sys.argv[2], 'rt') as file:
     lines = file.readlines()
     for row in lines:
         operations.append(parse(row))
+
 TwoPhaseLocking().simulate(operations)
