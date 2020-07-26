@@ -75,7 +75,7 @@ class WoundWait:
         if self.TRANSACTION_TABLE[line.tid].timestamp < self.TRANSACTION_TABLE[holding].timestamp:
             print("T{} Aborted since an older transaction T{} applied write-lock on item {}.".format(
                 holding, line.tid, line.item))
-            self.abort(holding)
+            self.abort(holding, line.tid)
             self.LOCK_TABLE[line.item].holding.append(line.tid)
             self.LOCK_TABLE[line.item].current_state = "write"
             print("T{} applied write-lock on item {}".format(line.tid, line.item))
