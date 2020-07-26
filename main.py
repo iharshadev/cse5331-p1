@@ -3,6 +3,7 @@ import sys
 import time
 from copy import deepcopy
 
+
 def tokenize(line):
     if re.match("b|e\d", line):
         return {"operation": line[0],
@@ -129,41 +130,25 @@ class TwoPhaseLocking:
         for i in items_to_be_freed:
             if self.LOCK_TABLE[i].waiting:
                 tid_waiting = self.LOCK_TABLE[i].waiting.pop(0)
-                print("T{} resumed operation from wait-list.".format(tid_waiting))
+                print("T{} resumed operation from wait-list for item {}.".format(tid_waiting, i))
                 waiting_ops = deepcopy(self.TRANSACTION_TABLE[tid_waiting].operations)
                 for exec_op in waiting_ops:
-                    # exec_op = self.TRANSACTION_TABLE[tid_waiting].operations[0]
                     self.TRANSACTION_TABLE[tid_waiting].operations.remove(exec_op)
-                    print("T{} resumed operation from wait-list.".format(tid_waiting))
                     self.execute_operation(Record(exec_op[0],
                                                   tid_waiting,
                                                   exec_op[1]), resume=True, op=exec_op)
-
 
         self.TRANSACTION_TABLE[tid].items = []
         self.TRANSACTION_TABLE[tid].operations = []
         self.TRANSACTION_TABLE[tid].status = "{}ed".format(term_type)
 
     def unlock(self, item, tid):
-        # item_index = self.TRANSACTION_TABLE[tid].items.index(item)
-
         for index, tpl in enumerate(self.TRANSACTION_TABLE[tid].operations):
             if tpl[1] == item:
                 del self.TRANSACTION_TABLE[tid].operations[index]
         self.LOCK_TABLE[item].holding.remove(tid)
         self.LOCK_TABLE[item].current_state = None
         print("\tT{} released lock on item {}".format(tid, item))
-
-        # if self.LOCK_TABLE[item].waiting:
-        #     tid_waiting = self.LOCK_TABLE[item].waiting.pop(0)
-        #     print("T{} resumed operation from wait-list.".format(tid_waiting))
-            #
-            # for i, exec_op in enumerate(self.TRANSACTION_TABLE[tid_waiting].operations):
-            #     # exec_op = self.TRANSACTION_TABLE[tid_waiting].operations[0]
-            #     del self.TRANSACTION_TABLE[tid_waiting].operations[i]
-            #     self.execute_operation(Record(exec_op[0],
-            #                                   tid_waiting,
-            #                                   exec_op[1]))
 
     def simulate(self, schedule):
         [self.execute_operation(line) for line in schedule]
@@ -184,7 +169,6 @@ class TwoPhaseLocking:
                 else:
                     print("T{} applied read-lock on item {}".format(line.tid, line.item))
                     if self.TRANSACTION_TABLE[line.tid].status == "active":
-                        # self.TRANSACTION_TABLE[line.tid].operations.append((line.op, line.item))
                         if line.item not in self.TRANSACTION_TABLE[line.tid].items:
                             self.TRANSACTION_TABLE[line.tid].items.append(line.item)
                     elif self.TRANSACTION_TABLE[line.tid].status == "wait":
@@ -222,7 +206,7 @@ class TwoPhaseLocking:
                     else:
                         tid_holding = self.LOCK_TABLE[line.item].holding[-1]
                         if tid_holding == line.tid:
-                            print("T{} upgraded the lock on item{} from to write".format(line.tid, line.item))
+                            print("T{} upgraded the lock on item {} from to write".format(line.tid, line.item))
                             self.LOCK_TABLE[line.item].current_state = "w"
                             if ("r", line.item) in self.TRANSACTION_TABLE[line.tid].operations:
                                 index = self.TRANSACTION_TABLE[line.tid].operations.index(("r", line.item))
