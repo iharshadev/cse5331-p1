@@ -59,7 +59,9 @@ class Record:
             self.item = item
 
     def __str__(self):
-        return "[Transaction: {}, Operation: {}, item: {}]".format(self.tid, self.op, self.item)
+        if self.item is None:
+            return f"{self.op}{self.tid}"
+        return f"{self.op}{self.tid}({self.item})"
 
 
 class TwoPhaseLocking:
@@ -68,13 +70,20 @@ class TwoPhaseLocking:
         self.TRANSACTION_TABLE = {}
         self.LOCK_TABLE = {}
         self.counter = 0
+        self.print_ts = 1
+    
+    def print_log(self, message, record=None):
+        print(f"{self.print_ts} - {message} {'- ' + str(record) if record else ''}")
+        self.print_ts += 1
+        return
 
     def begin_transaction(self, record, counter):
         if record.tid in self.TRANSACTION_TABLE:
             print("Malformed Input. Transaction T{} started more than once".format(record.tid))
         else:
             self.TRANSACTION_TABLE[record.tid] = Transaction(record.tid, self.timestamp + counter)
-            print("Transaction T{} started".format(record.tid))
+            message = f"Transaction T{record.tid} started"
+            self.print_log(message, record)
 
     def prevent_deadlock(self, line, holding, lock="write"):
         if control_method == ALLOWED_CONTROL_METHODS[0]:
@@ -86,16 +95,15 @@ class TwoPhaseLocking:
 
     def wound_wait(self, line, holding, lock):
         if self.TRANSACTION_TABLE[line.tid].timestamp < self.TRANSACTION_TABLE[holding].timestamp:
-            abort_reason = "T{} Aborted since an older transaction T{} applied write-lock on item {}.".format(
-                holding, line.tid, line.item)
-            self.terminate_transaction(holding, term_type="abort", reason=abort_reason)
+            abort_message = f"T{holding} aborted since an older transaction T{line.tid} applied write-lock on item {line.item}"
+            self.print_log(abort_message, line)
+            self.terminate_transaction(holding, term_type="abort", reason=abort_message, line=line)
             self.LOCK_TABLE[line.item].holding.append(line.tid)
             self.LOCK_TABLE[line.item].current_state = lock
             print("T{} applied write-lock on item {}".format(line.tid, line.item))
         else:
-            print("T{} added to wait-list for {}-lock on item {}.\
-            REASON: Older transaction T{} has applied {} lock on it".format(
-                line.tid, line.op, line.item, holding, self.LOCK_TABLE[line.item].state()))
+            waitlist_message = f"T{line.tid} added to wait-list for {line.op}-lock on item {line.item}. REASON: Older transaction T{holding} has applied {self.LOCK_TABLE[line.item].state()} lock on it."
+            self.print_log(waitlist_message, line)
             self.TRANSACTION_TABLE[line.tid].operations.append((line.op, line.item))
             if line.item not in self.TRANSACTION_TABLE[line.tid].items:
                 self.TRANSACTION_TABLE[line.tid].items.append(line.item)
@@ -115,10 +123,15 @@ class TwoPhaseLocking:
                 and (key in self.LOCK_TABLE[item].holding or key in self.LOCK_TABLE[item].waiting)]
 
     def terminate_transaction(self, tid, term_type="end", **kwargs):
+        reason = kwargs.get("reason")
+        line = kwargs.get("line")
+
         if term_type == "abort":
-            print("Aborting transaction T{}. REASON: {}".format(tid, kwargs["reason"]))
+            abort_message = f"Aborting transaction T{tid}. REASON: {reason}"
+            self.print_log(abort_message, line)
         else:
-            print("Transaction T{} {}ed. Releasing all locks held".format(tid, term_type))
+            release_message = f"Transaction T{tid} {term_type}ed. Releasing all locks held"
+            self.print_log(release_message, line)
 
         items_to_be_freed = deepcopy(self.TRANSACTION_TABLE[tid].items)
 
@@ -130,7 +143,8 @@ class TwoPhaseLocking:
         for i in items_to_be_freed:
             if self.LOCK_TABLE[i].waiting:
                 tid_waiting = self.LOCK_TABLE[i].waiting.pop(0)
-                print("T{} resumed operation from wait-list for item {}.".format(tid_waiting, i))
+                resume_message = f"T{tid_waiting} resumed operation from wait-list for item {i}."
+                self.print_log(resume_message, line)
                 waiting_ops = deepcopy(self.TRANSACTION_TABLE[tid_waiting].operations)
                 for exec_op in waiting_ops:
                     self.TRANSACTION_TABLE[tid_waiting].operations.remove(exec_op)
@@ -148,7 +162,8 @@ class TwoPhaseLocking:
                 del self.TRANSACTION_TABLE[tid].operations[index]
         self.LOCK_TABLE[item].holding.remove(tid)
         self.LOCK_TABLE[item].current_state = None
-        print("\tT{} released lock on item {}".format(tid, item))
+        release_message = f"\tT{tid} released lock on item {item}"
+        print(release_message)
 
     def simulate(self, schedule):
         [self.execute_operation(line) for line in schedule]
@@ -162,12 +177,12 @@ class TwoPhaseLocking:
                 pass
             elif line.item in self.LOCK_TABLE:
                 if self.LOCK_TABLE[line.item].current_state == "w":
-                    print("Item {} already write-locked by T{}. Using wound-wait to resolve conflict".format(
-                        line.item, self.LOCK_TABLE[line.item].holding[0]
-                    ))
+                    message = f"Item {line.item} already write-locked by T{self.LOCK_TABLE[line.item].holding[0]}. Using {control_method} to resolve conflict"
+                    self.print_log(message, line)
                     self.prevent_deadlock(line, self.LOCK_TABLE[line.item].holding[0], "read")
                 else:
-                    print("T{} applied read-lock on item {}".format(line.tid, line.item))
+                    message = f"T{line.tid} applied read-lock on item {line.item}"
+                    self.print_log(message, line)
                     if self.TRANSACTION_TABLE[line.tid].status == "active":
                         if line.item not in self.TRANSACTION_TABLE[line.tid].items:
                             self.TRANSACTION_TABLE[line.tid].items.append(line.item)
@@ -178,7 +193,8 @@ class TwoPhaseLocking:
                     if op and op in self.TRANSACTION_TABLE[line.tid].operations:
                         self.TRANSACTION_TABLE[line.tid].operations.remove(op)
             else:
-                print("T{} applied read-lock on item {}".format(line.tid, line.item))
+                message = f"T{line.tid} applied read-lock on item {line.item}"
+                self.print_log(message, line)
                 # self.TRANSACTION_TABLE[line.tid].operations.append((line.op, line.item))
                 if line.item not in self.TRANSACTION_TABLE[line.tid].items:
                     self.TRANSACTION_TABLE[line.tid].items.append(line.item)
@@ -192,13 +208,15 @@ class TwoPhaseLocking:
             else:
                 for younger_tid in self.get_younger_than(line.tid, line.item):
                     # self.abort(younger_tid, line.tid)
-                    abort_reason = "Older transaction T{} applied write-lock on {}".format(line.tid, line.item)
-                    self.terminate_transaction(younger_tid, term_type="abort", reason=abort_reason)
+                    abort_reason = f"Older transaction T{line.tid} applied write-lock on {line.item}"
+                    self.print_log(abort_reason, line)
+                    self.terminate_transaction(younger_tid, term_type="abort", reason=abort_reason, line=line)
 
                 # if item is locked by a transaction
                 if line.item in self.LOCK_TABLE:
                     if not self.LOCK_TABLE[line.item].holding:
-                        print("T{} applied write-lock on item {}".format(line.tid, line.item))
+                        wlock_message = f"T{line.tid} applied write-lock on item {line.item}"
+                        self.print_log(wlock_message, line)
                         self.LOCK_TABLE[line.item].current_state = "w"
                         self.LOCK_TABLE[line.item].holding.append(line.tid)
                         if op and op in self.TRANSACTION_TABLE[line.tid].operations:
@@ -206,7 +224,8 @@ class TwoPhaseLocking:
                     else:
                         tid_holding = self.LOCK_TABLE[line.item].holding[-1]
                         if tid_holding == line.tid:
-                            print("T{} upgraded the lock on item {} from to write".format(line.tid, line.item))
+                            upgrade_message = f"T{line.tid} upgraded the lock on item {line.item} to write"
+                            self.print_log(upgrade_message)
                             self.LOCK_TABLE[line.item].current_state = "w"
                             if ("r", line.item) in self.TRANSACTION_TABLE[line.tid].operations:
                                 index = self.TRANSACTION_TABLE[line.tid].operations.index(("r", line.item))
@@ -214,18 +233,20 @@ class TwoPhaseLocking:
                             if op and op in self.TRANSACTION_TABLE[line.tid].operations:
                                 self.TRANSACTION_TABLE[line.tid].operations.remove(op)
                         else:
-                            print(
-                                "Conflict: Already {}-locked by T{}. Using wound-wait to resolve conflict".format(
-                                    self.LOCK_TABLE[line.item].current_state, self.LOCK_TABLE[line.item].holding[-1]))
+                            state = self.LOCK_TABLE[line.item].current_state
+                            holding_item = self.LOCK_TABLE[line.item].holding[-1]
+                            conflict_message = f"Conflict: Already {state}-locked by T{holding_item}. Using {control_method} to resolve conflict."
+                            self.print_log(conflict_message, line)
                             self.prevent_deadlock(line, tid_holding)
                 else:
-                    print("T{} applied write-lock on item {}".format(line.tid, line.item))
+                    wlock_message = f"T{line.tid} applied write-lock on item {line.item}"
+                    self.print_log(wlock_message, line)
                     self.LOCK_TABLE[line.item].current_state = "w"
                     self.LOCK_TABLE[line.item].holding.append(line.tid)
 
         elif line.op == "e":
             if self.TRANSACTION_TABLE[line.tid].status != "aborted":
-                self.terminate_transaction(line.tid)
+                self.terminate_transaction(line.tid, line=line)
 
 
 operations = []
