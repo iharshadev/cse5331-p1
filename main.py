@@ -51,7 +51,9 @@ class LockTable:
 
 
 class Record:
+
     def __init__(self, op, tid, item=None):
+        self.__locklookup__ = {"r": "read", "w": "write"}
         self.op = op
         self.tid = tid
         self.item = None
@@ -62,6 +64,9 @@ class Record:
         if self.item is None:
             return f"{self.op}{self.tid}"
         return f"{self.op}{self.tid}({self.item})"
+
+    def lock(self):
+        return self.__locklookup__[self.op]
 
 
 class TwoPhaseLocking:
@@ -102,19 +107,19 @@ class TwoPhaseLocking:
             self.LOCK_TABLE[line.item].current_state = lock
             print("T{} applied write-lock on item {}".format(line.tid, line.item))
         else:
-            waitlist_message = f"T{line.tid} added to wait-list for {line.op}-lock on item {line.item}. REASON: Older transaction T{holding} has applied {self.LOCK_TABLE[line.item].state()} lock on it."
+            waitlist_message = f"T{line.tid} blocked for {line.lock()}-lock on item {line.item}. REASON: Older transaction T{holding} has applied {self.LOCK_TABLE[line.item].state()} lock on it."
             self.print_log(waitlist_message, line)
             self.TRANSACTION_TABLE[line.tid].operations.append((line.op, line.item))
             if line.item not in self.TRANSACTION_TABLE[line.tid].items:
                 self.TRANSACTION_TABLE[line.tid].items.append(line.item)
-            self.TRANSACTION_TABLE[line.tid].status = "wait"
+            self.TRANSACTION_TABLE[line.tid].status = "blocked"
             if line.tid not in self.LOCK_TABLE[line.item].waiting:
                 self.LOCK_TABLE[line.item].waiting.append(line.tid)
 
     def wait_die(self):
         pass
 
-    def caution_wait(self):
+    def cautious_wait(self):
         pass
 
     def get_younger_than(self, tid, item):
@@ -122,7 +127,7 @@ class TwoPhaseLocking:
                 if value.timestamp > self.TRANSACTION_TABLE[tid].timestamp
                 and (key in self.LOCK_TABLE[item].holding or key in self.LOCK_TABLE[item].waiting)]
 
-    def terminate_transaction(self, tid, term_type="end", **kwargs):
+    def terminate_transaction(self, tid, term_type="committ", **kwargs):
         reason = kwargs.get("reason")
         line = kwargs.get("line")
 
@@ -186,7 +191,7 @@ class TwoPhaseLocking:
                     if self.TRANSACTION_TABLE[line.tid].status == "active":
                         if line.item not in self.TRANSACTION_TABLE[line.tid].items:
                             self.TRANSACTION_TABLE[line.tid].items.append(line.item)
-                    elif self.TRANSACTION_TABLE[line.tid].status == "wait":
+                    elif self.TRANSACTION_TABLE[line.tid].status == "blocked":
                         self.TRANSACTION_TABLE[line.tid].status = "active"
                     self.LOCK_TABLE[line.item].holding.append(line.tid)
                     self.LOCK_TABLE[line.item].current_state = "r"
