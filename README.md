@@ -6,28 +6,76 @@
     Phase 2 - Simulate a rigorous two phase locking protocol (2PL) with wound wait method for deadlock prevention and concurrency control
 </h2>
 
+## UPDATE 
+1. Implemented `wait-die` method for deadlock prevention for the **extra credit**
+
 ### Contributors
 
 |Student Id | Student Name| Contribution |
 |---|---|---|
 |1001767678| Harshavardhan Ramamurthy| class-structure, write_lock(), end_transaction(), wound_wait(), commit(), abort() |
-|1001767676| Karan Rajpal| main-driver, read_lock(), begin_transaction(), execute_operation(), unlock() |
+|1001767676| Karan Rajpal| main-driver, read_lock(), begin_transaction(), execute_operation(), unlock(), wait_die() |
 
 ### Instructions
 
 **This program uses only python's internal libraries and does not need any other dependencies**
 
-1. Place all input files in `inputs/` directory in the project folder
+1. All input files are placed in `inputs/` directory in the project folder with the naming convention `input[0-9].txt`
 
 2. If you are using a linux based system, then do steps 3 and 4. If not, then skip to step 5.
 
 3. Provide execute permissions to the `simulate.sh` file by running `chmod +x simulate.sh` in your console
 
-4. Run `./simulate.sh` in your console. This should simulate wound-wait on all the input files present in the `inputs/` directory
+4. Run `./simulate.sh` in your console. This will 
+    * Simulate both `wound-wait` and `wait-die` on all the input files present in the `inputs/` directory
+    * Display output on the console
+    * Save the outputs to `outputs/wound-wait/` and `outputs/wait-die/` respectively for reference
+    
+    Demo:
+    ```
+   ❯ ./simulate.sh
+   Input file: inputs/input1.txt, Output also saved to: outputs/wound-wait/output1.txt
+   Using wound-wait for deadlock prevention
+    
+    1 - Transaction T1 started - b1
+    2 - T1 applied read-lock on item Y - r1(Y)
+    3 - T1 upgraded the lock on item Y to write 
+    ...
+    16 - Transaction T2 committed. Releasing all locks held - e2
+        T2 released lock on item Y
+    ...
+    ...
+    ...
+    ...
+    Input file: inputs/input1.txt, Output also saved to: outputs/wait-die/output1.txt
+    Using wait-die for deadlock prevention
+    
+    1 - Transaction T1 started - b1
+    2 - T1 applied read-lock on item Y - r1(Y)
+    3 - T1 upgraded the lock on item Y to write 
+    4 - T1 applied read-lock on item Z - r1(Z)
+    5 - Transaction T2 started - b2
+    ...
+   
+   # For reference after execution
+   ❯ tree outputs
+   outputs
+    ├── wait-die
+    │   ├── output1.txt
+    │   ├── output2.txt
+    │   ├── output3.txt
+    │   └── output4.txt
+    └── wound-wait
+        ├── output1.txt
+        ├── output2.txt
+        ├── output3.txt
+        └── output4.txt
 
-5. Execute the program using `python main.py wound-wait inputs/<input_file>.txt`
+   ```
 
-    Example: `python main.py wound-wait inputs/input1.txt`
+5. Execute the program using `python main.py <prevention-method> inputs/<input_file>.txt`
+
+    Example 1: `python main.py wound-wait inputs/input1.txt`
 
     And your output should look like:
     ```
@@ -56,6 +104,31 @@
     16 - Transaction T2 committed. Releasing all locks held - e2
         T2 released lock on item Y
     ```
+   Example 2: `python main.py wait-die inputs/input1.txt`
+   And your output should look like:
+    ```
+    ❯ python main.py wait-die inputs/input1.txt
+   Using wait-die for deadlock prevention
+
+    1 - Transaction T1 started - b1
+    2 - T1 applied read-lock on item Y - r1(Y)
+    3 - T1 upgraded the lock on item Y to write 
+    4 - T1 applied read-lock on item Z - r1(Z)
+    5 - Transaction T2 started - b2
+    6 - Item Y already write-locked by T1. Using wait-die to resolve conflict - r2(Y)
+    7 - T1 aborted since a younger transaction T2 applied write-lock on item Y - r2(Y)
+    8 - Aborting transaction T1. REASON: T1 aborted since a younger transaction T2 applied write-lock on item Y - r2(Y)
+        T1 released lock on item Y
+        T1 released lock on item Z
+    9 - T2 applied write-lock on item Y - r2(Y)
+    10 - Transaction T3 started - b3
+    11 - T3 applied read-lock on item Z - r3(Z)
+    12 - T3 upgraded the lock on item Z to write 
+    13 - Transaction T3 committed. Releasing all locks held - e3
+        T3 released lock on item Z
+    14 - Transaction T2 committed. Releasing all locks held - e2
+   ```
+   
 
 ### Pseudo Code
 
@@ -225,6 +298,24 @@ def wound_wait():
         DISPLAY requesting_transaction is blocked
 ```
 
+####  wait_die()
+Uses the `wait-die` approach to resolve conflict when a transaction is trying to lock an item that is already locked.
+
+```python
+def wait_die():
+    request_timestamp := timestamp_of_requesting_transaction
+    hold_timestamp := timestamp_holding_transaction_lock
+    IF request_timestamp < hold_timestamp THEN
+        # requesting_transaction will wait        
+        APPEND tid of requesting_transaction to transaction_waiting in lock_table
+        UPDATE status of requesting_transaction in transaction_table to "blocked"
+        DISPLAY requesting_transaction is blocked
+    ELSE
+        DISPLAY requestion_transaction will abort     
+        abort(requesting_transaction)
+        # Will be restarted later with same timestamp
+
+```
 ### Data Structures Proposed
 
 #### Transaction Table
