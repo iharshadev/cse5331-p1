@@ -2,7 +2,7 @@ Using wound-wait for deadlock prevention
 
 1 - Transaction T1 started - b1
 2 - T1 applied read-lock on item Y - r1(Y)
-3 - T1 upgraded the lock on item Y to write
+3 - T1 upgraded the lock on item Y to write 
 4 - T1 applied read-lock on item Z - r1(Z)
 5 - Transaction T2 started - b2
 6 - Item Y already write-locked by T1. Using wound-wait to resolve conflict - r2(Y)
@@ -14,7 +14,7 @@ Using wound-wait for deadlock prevention
 12 - Older transaction T1 applied write-lock on Z - w1(Z)
 13 - Aborting transaction T3. REASON: Older transaction T1 applied write-lock on Z - w1(Z)
 	T3 released lock on item Z
-14 - T1 upgraded the lock on item Z to write
+14 - T1 upgraded the lock on item Z to write 
 15 - Conflict: Already w-locked by T1. Using wound-wait to resolve conflict. - w2(Z)
 16 - T2 blocked for write-lock on item Z. REASON: Older transaction T1 has applied write lock on it. - w2(Z)
 17 - Transaction T1 committed. Releasing all locks held - e1
@@ -22,7 +22,7 @@ Using wound-wait for deadlock prevention
 	T1 released lock on item Z
 18 - T2 resumed operation from wait-list for item Y. - e1
 19 - T2 applied read-lock on item Y - r2(Y)
-20 - T2 upgraded the lock on item Y to write
+20 - T2 upgraded the lock on item Y to write 
 21 - T2 applied write-lock on item Z - w2(Z)
 22 - T2 resumed operation from wait-list for item Z. - e1
 23 - Transaction T2 committed. Releasing all locks held - e2

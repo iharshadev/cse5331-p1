@@ -1,0 +1,21 @@
+Using wait-die for deadlock prevention
+
+1 - Transaction T1 started - b1
+2 - T1 applied read-lock on item Y - r1(Y)
+3 - T1 upgraded the lock on item Y to write 
+4 - T1 applied read-lock on item Z - r1(Z)
+5 - Transaction T2 started - b2
+6 - Item Y already write-locked by T1. Using wait-die to resolve conflict - r2(Y)
+7 - T1 aborted since a younger transaction T2 applied write-lock on item Y - r2(Y)
+8 - Aborting transaction T1. REASON: T1 aborted since a younger transaction T2 applied write-lock on item Y - r2(Y)
+	T1 released lock on item Y
+	T1 released lock on item Z
+9 - T2 applied write-lock on item Y - r2(Y)
+10 - T2 upgraded the lock on item Y to write 
+11 - Transaction T3 started - b3
+12 - T3 applied read-lock on item Z - r3(Z)
+13 - Older transaction T2 applied write-lock on Z - w2(Z)
+14 - Aborting transaction T3. REASON: Older transaction T2 applied write-lock on Z - w2(Z)
+	T3 released lock on item Z
+15 - T2 applied write-lock on item Z - w2(Z)
+16 - Transaction T2 committed. Releasing all locks held - e2

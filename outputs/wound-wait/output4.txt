@@ -1,0 +1,32 @@
+Using wound-wait for deadlock prevention
+
+1 - Transaction T1 started - b1
+2 - T1 applied read-lock on item Y - r1(Y)
+3 - T1 upgraded the lock on item Y to write 
+4 - T1 applied read-lock on item Z - r1(Z)
+5 - Transaction T2 started - b2
+6 - Item Y already write-locked by T1. Using wound-wait to resolve conflict - r2(Y)
+7 - T2 blocked for read-lock on item Y. REASON: Older transaction T1 has applied write lock on it. - r2(Y)
+8 - Transaction T3 started - b3
+9 - T3 applied read-lock on item Z - r3(Z)
+10 - T3 upgraded the lock on item Z to write 
+11 - Transaction T4 started - b4
+12 - T4 applied read-lock on item X - r4(X)
+13 - Item Y already write-locked by T1. Using wound-wait to resolve conflict - r4(Y)
+14 - T4 blocked for read-lock on item Y. REASON: Older transaction T1 has applied write lock on it. - r4(Y)
+15 - Transaction T1 committed. Releasing all locks held - e1
+	T1 released lock on item Y
+	T1 released lock on item Z
+16 - T2 resumed operation from wait-list for item Y. - e1
+17 - T2 applied read-lock on item Y - r2(Y)
+18 - T4 upgraded the lock on item X to write 
+19 - Transaction T3 committed. Releasing all locks held - e3
+	T3 released lock on item Z
+20 - Transaction T2 committed. Releasing all locks held - e2
+	T2 released lock on item Y
+21 - T4 resumed operation from wait-list for item Y. - e2
+22 - T4 applied read-lock on item Y - r4(Y)
+23 - T4 upgraded the lock on item Y to write 
+24 - Transaction T4 committed. Releasing all locks held - e4
+	T4 released lock on item X
+	T4 released lock on item Y
