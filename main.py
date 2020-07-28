@@ -94,9 +94,9 @@ class TwoPhaseLocking:
         if control_method == ALLOWED_CONTROL_METHODS[0]:
             self.wound_wait(line, holding, lock)
         elif control_method == ALLOWED_CONTROL_METHODS[1]:
-            self.wait_die()
+            self.wait_die(line, holding, lock)
         else:
-            self.caution_wait()
+            self.caution_wait(line, holding, lock)
 
     def wound_wait(self, line, holding, lock):
         if self.TRANSACTION_TABLE[line.tid].timestamp < self.TRANSACTION_TABLE[holding].timestamp:
@@ -116,10 +116,25 @@ class TwoPhaseLocking:
             if line.tid not in self.LOCK_TABLE[line.item].waiting:
                 self.LOCK_TABLE[line.item].waiting.append(line.tid)
 
-    def wait_die(self):
-        pass
+    def wait_die(self, line, holding, lock):
+        if self.TRANSACTION_TABLE[line.tid].timestamp < self.TRANSACTION_TABLE[holding].timestamp:
+            waitlist_message = f"T{line.tid} blocked for {line.lock()}-lock on item {line.item}. REASON: Older transaction T{holding} has applied {self.LOCK_TABLE[line.item].state()} lock on it."
+            self.print_log(waitlist_message, line)
+            self.TRANSACTION_TABLE[line.tid].operations.append((line.op, line.item))
+            if line.item not in self.TRANSACTION_TABLE[line.tid].items:
+                self.TRANSACTION_TABLE[line.tid].items.append(line.item)
+            self.TRANSACTION_TABLE[line.tid].status = "blocked"
+            if line.tid not in self.LOCK_TABLE[line.item].waiting:
+                self.LOCK_TABLE[line.item].waiting.append(line.tid)
+        else:
+            abort_message = f"T{holding} aborted since an older transaction T{line.tid} applied write-lock on item {line.item}"
+            self.print_log(abort_message, line)
+            self.terminate_transaction(holding, term_type="abort", reason=abort_message, line=line)
+            self.LOCK_TABLE[line.item].holding.append(line.tid)
+            self.LOCK_TABLE[line.item].current_state = lock
+            print("T{} applied write-lock on item {}".format(line.tid, line.item))
 
-    def cautious_wait(self):
+    def caution_wait(self, line, holding, lock):
         pass
 
     def get_younger_than(self, tid, item):
