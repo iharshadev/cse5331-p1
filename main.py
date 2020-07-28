@@ -127,14 +127,14 @@ class TwoPhaseLocking:
             if line.tid not in self.LOCK_TABLE[line.item].waiting:
                 self.LOCK_TABLE[line.item].waiting.append(line.tid)
         else:
-            abort_message = f"T{holding} aborted since an older transaction T{line.tid} applied write-lock on item {line.item}"
+            abort_message = f"T{holding} aborted since a younger transaction T{line.tid} applied write-lock on item {line.item}"
             self.print_log(abort_message, line)
             self.terminate_transaction(holding, term_type="abort", reason=abort_message, line=line)
             self.LOCK_TABLE[line.item].holding.append(line.tid)
             self.LOCK_TABLE[line.item].current_state = lock
-            print("T{} applied write-lock on item {}".format(line.tid, line.item))
+            self.print_log("T{} applied write-lock on item {}".format(line.tid, line.item), line)
 
-    def caution_wait(self, line, holding, lock):
+    def cautious_wait(self, line, holding, lock):
         pass
 
     def get_younger_than(self, tid, item):
